@@ -146,40 +146,40 @@ enum cache_request_status tag_array::probe( new_addr_type addr, unsigned &idx , 
         idx = 0;
         return HIT;
     }
-
+    //printf("the cache _part is %d\n",m_config.cache_part==true?1:0);
     if (m_config.cache_part) {
         unsigned threshold;
-		if(gpu_mode3 ==0)
+		if(gpu_mode3 ==0)//not 3 apps
 			threshold = gpu_sms_app1;
 		else
 			threshold= gpu_sms/gpu_groups;
 		//unsigned threshold = gpu_sms/gpu_groups;
 	   //unsigned threshold = gpu_sms_app1; // TUBA - core partitioning
-	    if (core_id_l2 != -1) {
-			if (core_id_l2 < threshold) {  
-				way_start = 0;
-				way_end = m_config.m_assoc/gpu_groups; 
-			}
-			if(gpu_mode3 == 0){
-				if (core_id_l2 >= threshold) {  
-					way_start = 0;
-					way_end = m_config.m_assoc/gpu_groups; 
-				}
-				
-			}else{
-				if(core_id_l2 >= threshold  && core_id_l2 < gpu_sms -threshold) {
-					way_start = m_config.m_assoc/gpu_groups;
-					way_end = 2 * m_config.m_assoc/gpu_groups; 
-				
-				}
-				else{ 
-					way_start = 2* m_config.m_assoc/gpu_groups; 
-					way_end = m_config.m_assoc;
-				}
-				
-			}
-
-		}	
+        if (core_id_l2 != -1)
+        {
+            //rewrite by sjq:
+            if(gpu_mode3==1){
+                if(core_id_l2<threshold){
+                    way_start=0;
+                    way_end=m_config.m_assoc/3;
+                }else if(core_id_l2<2*threshold){
+                    way_start=m_config.m_assoc/3;
+                    way_end=2*m_config.m_assoc/3;
+                }else{
+                    way_start=2*m_config.m_assoc/3;
+                    way_end=m_config.m_assoc;
+                }
+            }
+            else if(gpu_mode3==0){
+                if(core_id_l2<threshold){
+                    way_start=0;
+                    way_end=m_config.m_assoc/gpu_groups;
+                }else{
+                    way_start=m_config.m_assoc/gpu_groups;
+                    way_end=m_config.m_assoc;
+                }
+            }else abort();
+        }
     }
 
     if ((m_config.cache_part) && (way_start == way_end)) {
@@ -214,7 +214,7 @@ enum cache_request_status tag_array::probe( new_addr_type addr, unsigned &idx , 
                 invalid_line = index;
             } else {
                 // valid line : keep track of most appropriate replacement candidate
-                if ( m_config.m_replacement_policy == LRU ) {
+                if ( m_config.m_replacement_policy == LRU ) {//find  a smallest line
                     if ( line->m_last_access_time < valid_timestamp ) {
                         valid_timestamp = line->m_last_access_time;
                         valid_line = index;
@@ -255,7 +255,7 @@ enum cache_request_status tag_array::access( new_addr_type addr, unsigned time, 
 {
     //unsigned threshold = gpu_sms/gpu_groups;
     unsigned threshold;
-	if(gpu_mode3 ==0)
+	if(gpu_mode3 ==0)//two or one app
 		threshold = gpu_sms_app1;
 	else
 		threshold= gpu_sms/gpu_groups;
@@ -287,7 +287,7 @@ enum cache_request_status tag_array::access( new_addr_type addr, unsigned time, 
     shader_cache_access_log(m_core_id, m_type_id, 0); // log accesses to cache
     assert(mf->get_sid() != -1);
 	
-	enum cache_request_status status = probe(addr,idx,-1);
+	enum cache_request_status status = probe(addr,idx,mf->get_sid());
     switch (status) {
     case HIT_RESERVED: 
         m_pending_hit++;
@@ -1244,6 +1244,7 @@ read_only_cache::access( new_addr_type addr,
     assert(!mf->get_is_write());
     new_addr_type block_addr = m_config.block_addr(addr);
     unsigned cache_index = (unsigned)-1;
+    //printf("the name is :%s\n",this->m_name.c_str());
     enum cache_request_status status = m_tag_array->probe(block_addr,cache_index,-1);
     enum cache_request_status cache_status = RESERVATION_FAIL;
 
@@ -1325,8 +1326,9 @@ data_cache::access( new_addr_type addr,
     bool wr = mf->get_is_write();
     new_addr_type block_addr = m_config.block_addr(addr);
     unsigned cache_index = (unsigned)-1;
+    //printf("this probe name =%s \n",this->m_name.c_str());
     enum cache_request_status probe_status
-        = m_tag_array->probe( block_addr, cache_index, -1 );
+        = m_tag_array->probe( block_addr, cache_index, mf->get_sid() );
     enum cache_request_status access_status
         = process_tag_probe( wr, probe_status, addr, cache_index, mf, time, events );
     m_stats.inc_stats(mf->get_access_type(),

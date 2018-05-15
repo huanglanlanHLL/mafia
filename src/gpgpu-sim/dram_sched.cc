@@ -50,7 +50,7 @@ frfcfs_scheduler::frfcfs_scheduler( const memory_config *config, dram_t *dm, mem
       m_queue[i].clear();
       m_bins[i].clear();
       m_last_row[i] = NULL;
-	  //last_core_id[i] = 200; //new
+	  last_core_id[i] = 0; //new
       curr_row_service_time[i] = 0;
       row_service_timestamp[i] = 0;
    }
@@ -136,6 +136,7 @@ dram_req_t *frfcfs_scheduler::schedule( unsigned bank, unsigned curr_row )
          m_last_row[bank] = &(bin_ptr->second);
          data_collection(bank);
 		 last_core_id[bank] = req->data->get_sid(); //new
+         //assert(last_core_id[bank]<30);
       } else {
          m_last_row[bank] = &(bin_ptr->second);
 

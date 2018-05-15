@@ -178,6 +178,10 @@ void memory_config::reg_options(class OptionParser * opp)
                    "unified banked L2 data cache config "
                    " {<nsets>:<bsize>:<assoc>,<rep>:<wr>:<alloc>:<wr_alloc>,<mshr>:<N>:<merge>,<mq>}",
                    "64:128:8,L:B:m:N,A:16:4,4");
+    //new for sjq
+    option_parser_register(opp, "-gpgpu_cache:dl2_part", OPT_BOOL, &m_L2_config.cache_part, 
+                   "is Part two cache partion for apps ","1");
+    //end new
     option_parser_register(opp, "-gpgpu_cache:dl2_texture_only", OPT_BOOL, &m_L2_texure_only, 
                            "L2 cache used for texture only",
                            "1");

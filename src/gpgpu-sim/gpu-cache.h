@@ -60,7 +60,7 @@ enum cache_event {
 
 const char * cache_request_status_str(enum cache_request_status status); 
 
-struct cache_block_t {
+struct cache_block_t {//cache block 
     cache_block_t()
     {
         m_tag=0;
