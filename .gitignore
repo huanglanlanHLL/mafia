@@ -4,3 +4,5 @@ doc/*
 lib/*
 newTest1/*
 pthread_benchmark/*
+cuobjdump_to_ptxplus/*
+libcuda/*
