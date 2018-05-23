@@ -19,9 +19,9 @@ INTERFACE = interconnect_interface.cpp
 DEBUG = 0 
 CPPFLAGS = -g -Wall
 ifneq ($(DEBUG),1)
-CPPFLAGS = -O3 -g 
+CPPFLAGS = -O3 
 else
-CPPFLAGS += 
+CPPFLAGS += -g3
 endif
 
 CPPFLAGS += -I$(OUTPUT_DIR) -I.

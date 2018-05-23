@@ -50,7 +50,7 @@ endif
 ifneq ($(DEBUG),1)
 	OPTFLAGS += -O3
 else
-	CXXFLAGS += 
+	CXXFLAGS += -g3
 endif
 
 POWER_FLAGS=
@@ -58,7 +58,7 @@ ifneq ($(GPGPUSIM_POWER_MODEL),)
 	POWER_FLAGS = -I$(GPGPUSIM_POWER_MODEL) -DGPGPUSIM_POWER_MODEL
 endif
 
-OPTFLAGS += -g3 -fPIC
+OPTFLAGS +=  -fPIC
 
 CPP = g++ $(SNOW)
 OEXT = o
