@@ -26,8 +26,8 @@
 
 #define FLEX_SCANNER
 #define YY_FLEX_MAJOR_VERSION 2
-#define YY_FLEX_MINOR_VERSION 5
-#define YY_FLEX_SUBMINOR_VERSION 35
+#define YY_FLEX_MINOR_VERSION 6
+#define YY_FLEX_SUBMINOR_VERSION 0
 #if YY_FLEX_SUBMINOR_VERSION > 0
 #define FLEX_BETA
 #endif
@@ -72,7 +72,6 @@ typedef int flex_int32_t;
 typedef unsigned char flex_uint8_t; 
 typedef unsigned short int flex_uint16_t;
 typedef unsigned int flex_uint32_t;
-#endif /* ! C99 */
 
 /* Limits of integral types. */
 #ifndef INT8_MIN
@@ -102,6 +101,8 @@ typedef unsigned int flex_uint32_t;
 #ifndef UINT32_MAX
 #define UINT32_MAX             (4294967295U)
 #endif
+
+#endif /* ! C99 */
 
 #endif /* ! FLEXINT_H */
 
@@ -159,7 +160,15 @@ typedef unsigned int flex_uint32_t;
 
 /* Size of default input buffer. */
 #ifndef YY_BUF_SIZE
+#ifdef __ia64__
+/* On IA-64, the buffer size is 16k, not 8k.
+ * Moreover, YY_BUF_SIZE is 2*YY_READ_BUF_SIZE in the general case.
+ * Ditto for the __ia64__ case accordingly.
+ */
+#define YY_BUF_SIZE 32768
+#else
 #define YY_BUF_SIZE 16384
+#endif /* __ia64__ */
 #endif
 
 /* The state buf must be large enough to hold one state per character in the main buffer.
@@ -171,7 +180,12 @@ typedef unsigned int flex_uint32_t;
 typedef struct yy_buffer_state *YY_BUFFER_STATE;
 #endif
 
-extern int ptx_leng;
+#ifndef YY_TYPEDEF_YY_SIZE_T
+#define YY_TYPEDEF_YY_SIZE_T
+typedef size_t yy_size_t;
+#endif
+
+extern yy_size_t ptx_leng;
 
 extern FILE *ptx_in, *ptx_out;
 
@@ -193,6 +207,13 @@ extern FILE *ptx_in, *ptx_out;
                     if ( ptx_text[yyl] == '\n' )\
                         --ptx_lineno;\
             }while(0)
+    #define YY_LINENO_REWIND_TO(dst) \
+            do {\
+                const char *p;\
+                for ( p = yy_cp-1; p >= (dst); --p)\
+                    if ( *p == '\n' )\
+                        --ptx_lineno;\
+            }while(0)
     
 /* Return all but the first "n" matched characters back to the input stream. */
 #define yyless(n) \
@@ -209,11 +230,6 @@ extern FILE *ptx_in, *ptx_out;
 	while ( 0 )
 
 #define unput(c) yyunput( c, (yytext_ptr)  )
-
-#ifndef YY_TYPEDEF_YY_SIZE_T
-#define YY_TYPEDEF_YY_SIZE_T
-typedef size_t yy_size_t;
-#endif
 
 #ifndef YY_STRUCT_YY_BUFFER_STATE
 #define YY_STRUCT_YY_BUFFER_STATE
@@ -303,7 +319,7 @@ static YY_BUFFER_STATE * yy_buffer_stack = 0; /**< Stack as an array. */
 /* yy_hold_char holds the character lost when ptx_text is formed. */
 static char yy_hold_char;
 static int yy_n_chars;		/* number of characters read into yy_ch_buf */
-int ptx_leng;
+yy_size_t ptx_leng;
 
 /* Points to current character in buffer. */
 static char *yy_c_buf_p = (char *) 0;
@@ -331,7 +347,7 @@ static void ptx__init_buffer (YY_BUFFER_STATE b,FILE *file  );
 
 YY_BUFFER_STATE ptx__scan_buffer (char *base,yy_size_t size  );
 YY_BUFFER_STATE ptx__scan_string (yyconst char *yy_str  );
-YY_BUFFER_STATE ptx__scan_bytes (yyconst char *bytes,int len  );
+YY_BUFFER_STATE ptx__scan_bytes (yyconst char *bytes,yy_size_t len  );
 
 void *ptx_alloc (yy_size_t  );
 void *ptx_realloc (void *,yy_size_t  );
@@ -363,7 +379,7 @@ void ptx_free (void *  );
 
 /* Begin user sect3 */
 
-#define ptx_wrap(n) 1
+#define ptx_wrap() (/*CONSTCOND*/1)
 #define YY_SKIP_YYWRAP
 
 typedef unsigned char YY_CHAR;
@@ -377,11 +393,17 @@ extern int ptx_lineno;
 int ptx_lineno = 1;
 
 extern char *ptx_text;
+#ifdef yytext_ptr
+#undef yytext_ptr
+#endif
 #define yytext_ptr ptx_text
 
 static yy_state_type yy_get_previous_state (void );
 static yy_state_type yy_try_NUL_trans (yy_state_type current_state  );
 static int yy_get_next_buffer (void );
+#if defined(__GNUC__) && __GNUC__ >= 3
+__attribute__((__noreturn__))
+#endif
 static void yy_fatal_error (yyconst char msg[]  );
 
 /* Done after the current pattern has been matched and before the
@@ -548,7 +570,7 @@ static yyconst flex_int16_t yy_accept[1289] =
        94,   96,    0,    0,    0,    0,  157,    0
     } ;
 
-static yyconst flex_int32_t yy_ec[256] =
+static yyconst YY_CHAR yy_ec[256] =
     {   0,
         1,    1,    1,    1,    1,    1,    1,    1,    2,    3,
         1,    1,    1,    1,    1,    1,    1,    1,    1,    1,
@@ -580,7 +602,7 @@ static yyconst flex_int32_t yy_ec[256] =
         1,    1,    1,    1,    1
     } ;
 
-static yyconst flex_int32_t yy_meta[76] =
+static yyconst YY_CHAR yy_meta[76] =
     {   0,
         1,    1,    2,    1,    1,    3,    4,    1,    1,    1,
         5,    1,    1,    1,    1,    1,    6,    6,    6,    6,
@@ -592,7 +614,7 @@ static yyconst flex_int32_t yy_meta[76] =
         4,    4,    1,    1,    1
     } ;
 
-static yyconst flex_int16_t yy_base[1334] =
+static yyconst flex_uint16_t yy_base[1334] =
     {   0,
         0,    0,   74,  143,  212,  281,  346,    0, 1583, 1582,
      1654, 1657, 1622,    0, 1657, 1657, 1657,    0,   27, 1657,
@@ -894,7 +916,7 @@ static yyconst flex_int16_t yy_def[1334] =
      1288, 1288, 1288
     } ;
 
-static yyconst flex_int16_t yy_nxt[1733] =
+static yyconst flex_uint16_t yy_nxt[1733] =
     {   0,
        12,   13,   14,   15,   16,   17,   18,   19,   20,   21,
        12,   22,   23,   24,   25,   26,   27,   28,   28,   28,
@@ -1364,7 +1386,7 @@ int ptx_error( const char *s );
 
 
 
-#line 1368 "lex.ptx_.c"
+#line 1390 "lex.ptx_.c"
 
 #define INITIAL 0
 #define IN_STRING 1
@@ -1401,19 +1423,19 @@ void ptx_set_extra (YY_EXTRA_TYPE user_defined  );
 
 FILE *ptx_get_in (void );
 
-void ptx_set_in  (FILE * in_str  );
+void ptx_set_in  (FILE * _in_str  );
 
 FILE *ptx_get_out (void );
 
-void ptx_set_out  (FILE * out_str  );
+void ptx_set_out  (FILE * _out_str  );
 
-int ptx_get_leng (void );
+yy_size_t ptx_get_leng (void );
 
 char *ptx_get_text (void );
 
 int ptx_get_lineno (void );
 
-void ptx_set_lineno (int line_number  );
+void ptx_set_lineno (int _line_number  );
 
 /* Macros after this point can all be overridden by user definitions in
  * section 1.
@@ -1425,6 +1447,10 @@ extern "C" int ptx_wrap (void );
 #else
 extern int ptx_wrap (void );
 #endif
+#endif
+
+#ifndef YY_NO_UNPUT
+    
 #endif
 
 #ifndef yytext_ptr
@@ -1447,7 +1473,12 @@ static int input (void );
 
 /* Amount of stuff to slurp up with each read. */
 #ifndef YY_READ_BUF_SIZE
+#ifdef __ia64__
+/* On IA-64, the buffer size is 16k, not 8k */
+#define YY_READ_BUF_SIZE 16384
+#else
 #define YY_READ_BUF_SIZE 8192
+#endif /* __ia64__ */
 #endif
 
 /* Copy whatever the last rule matched to the standard output. */
@@ -1466,7 +1497,7 @@ static int input (void );
 	if ( YY_CURRENT_BUFFER_LVALUE->yy_is_interactive ) \
 		{ \
 		int c = '*'; \
-		unsigned n; \
+		size_t n; \
 		for ( n = 0; n < max_size && \
 			     (c = getc( ptx_in )) != EOF && c != '\n'; ++n ) \
 			buf[n] = (char) c; \
@@ -1534,7 +1565,7 @@ extern int ptx_lex (void);
 
 /* Code executed at the end of each rule. */
 #ifndef YY_BREAK
-#define YY_BREAK break;
+#define YY_BREAK /*LINTED*/break;
 #endif
 
 #define YY_RULE_SETUP \
@@ -1544,15 +1575,10 @@ extern int ptx_lex (void);
  */
 YY_DECL
 {
-	register yy_state_type yy_current_state;
-	register char *yy_cp, *yy_bp;
-	register int yy_act;
+	yy_state_type yy_current_state;
+	char *yy_cp, *yy_bp;
+	int yy_act;
     
-#line 54 "../src/cuda-sim/ptx.l"
-
-
-#line 1555 "lex.ptx_.c"
-
 	if ( !(yy_init) )
 		{
 		(yy_init) = 1;
@@ -1579,7 +1605,13 @@ YY_DECL
 		ptx__load_buffer_state( );
 		}
 
-	while ( 1 )		/* loops until end-of-file is reached */
+	{
+#line 54 "../src/cuda-sim/ptx.l"
+
+
+#line 1613 "lex.ptx_.c"
+
+	while ( /*CONSTCOND*/1 )		/* loops until end-of-file is reached */
 		{
 		yy_cp = (yy_c_buf_p);
 
@@ -1595,7 +1627,7 @@ YY_DECL
 yy_match:
 		do
 			{
-			register YY_CHAR yy_c = yy_ec[YY_SC_TO_UI(*yy_cp)];
+			YY_CHAR yy_c = yy_ec[YY_SC_TO_UI(*yy_cp)] ;
 			if ( yy_accept[yy_current_state] )
 				{
 				(yy_last_accepting_state) = yy_current_state;
@@ -1621,7 +1653,7 @@ yy_find_action:
 
 		if ( yy_act != YY_END_OF_BUFFER && yy_rule_can_match_eol[yy_act] )
 			{
-			int yyl;
+			yy_size_t yyl;
 			for ( yyl = 0; yyl < ptx_leng; ++yyl )
 				if ( ptx_text[yyl] == '\n' )
 					   
@@ -3099,7 +3131,7 @@ YY_RULE_SETUP
 #line 397 "../src/cuda-sim/ptx.l"
 ECHO;
 	YY_BREAK
-#line 3103 "lex.ptx_.c"
+#line 3135 "lex.ptx_.c"
 case YY_STATE_EOF(INITIAL):
 case YY_STATE_EOF(IN_STRING):
 case YY_STATE_EOF(IN_COMMENT):
@@ -3235,6 +3267,7 @@ case YY_STATE_EOF(NOT_OPCODE):
 			"fatal flex scanner internal error--no action found" );
 	} /* end of action switch */
 		} /* end of scanning one token */
+	} /* end of user's declarations */
 } /* end of ptx_lex */
 
 /* yy_get_next_buffer - try to read in a new buffer
@@ -3246,9 +3279,9 @@ case YY_STATE_EOF(NOT_OPCODE):
  */
 static int yy_get_next_buffer (void)
 {
-    	register char *dest = YY_CURRENT_BUFFER_LVALUE->yy_ch_buf;
-	register char *source = (yytext_ptr);
-	register int number_to_move, i;
+    	char *dest = YY_CURRENT_BUFFER_LVALUE->yy_ch_buf;
+	char *source = (yytext_ptr);
+	yy_size_t number_to_move, i;
 	int ret_val;
 
 	if ( (yy_c_buf_p) > &YY_CURRENT_BUFFER_LVALUE->yy_ch_buf[(yy_n_chars) + 1] )
@@ -3277,7 +3310,7 @@ static int yy_get_next_buffer (void)
 	/* Try to read more data. */
 
 	/* First move last chars to start of buffer. */
-	number_to_move = (int) ((yy_c_buf_p) - (yytext_ptr)) - 1;
+	number_to_move = (yy_size_t) ((yy_c_buf_p) - (yytext_ptr)) - 1;
 
 	for ( i = 0; i < number_to_move; ++i )
 		*(dest++) = *(source++);
@@ -3290,21 +3323,21 @@ static int yy_get_next_buffer (void)
 
 	else
 		{
-			int num_to_read =
+			yy_size_t num_to_read =
 			YY_CURRENT_BUFFER_LVALUE->yy_buf_size - number_to_move - 1;
 
 		while ( num_to_read <= 0 )
 			{ /* Not enough room in the buffer - grow it. */
 
 			/* just a shorter name for the current buffer */
-			YY_BUFFER_STATE b = YY_CURRENT_BUFFER;
+			YY_BUFFER_STATE b = YY_CURRENT_BUFFER_LVALUE;
 
 			int yy_c_buf_p_offset =
 				(int) ((yy_c_buf_p) - b->yy_ch_buf);
 
 			if ( b->yy_is_our_buffer )
 				{
-				int new_size = b->yy_buf_size * 2;
+				yy_size_t new_size = b->yy_buf_size * 2;
 
 				if ( new_size <= 0 )
 					b->yy_buf_size += b->yy_buf_size / 8;
@@ -3335,7 +3368,7 @@ static int yy_get_next_buffer (void)
 
 		/* Read in more data. */
 		YY_INPUT( (&YY_CURRENT_BUFFER_LVALUE->yy_ch_buf[number_to_move]),
-			(yy_n_chars), (size_t) num_to_read );
+			(yy_n_chars), num_to_read );
 
 		YY_CURRENT_BUFFER_LVALUE->yy_n_chars = (yy_n_chars);
 		}
@@ -3359,9 +3392,9 @@ static int yy_get_next_buffer (void)
 	else
 		ret_val = EOB_ACT_CONTINUE_SCAN;
 
-	if ((yy_size_t) ((yy_n_chars) + number_to_move) > YY_CURRENT_BUFFER_LVALUE->yy_buf_size) {
+	if ((int) ((yy_n_chars) + number_to_move) > YY_CURRENT_BUFFER_LVALUE->yy_buf_size) {
 		/* Extend the array by 50%, plus the number we really need. */
-		yy_size_t new_size = (yy_n_chars) + number_to_move + ((yy_n_chars) >> 1);
+		int new_size = (yy_n_chars) + number_to_move + ((yy_n_chars) >> 1);
 		YY_CURRENT_BUFFER_LVALUE->yy_ch_buf = (char *) ptx_realloc((void *) YY_CURRENT_BUFFER_LVALUE->yy_ch_buf,new_size  );
 		if ( ! YY_CURRENT_BUFFER_LVALUE->yy_ch_buf )
 			YY_FATAL_ERROR( "out of dynamic memory in yy_get_next_buffer()" );
@@ -3380,14 +3413,14 @@ static int yy_get_next_buffer (void)
 
     static yy_state_type yy_get_previous_state (void)
 {
-	register yy_state_type yy_current_state;
-	register char *yy_cp;
+	yy_state_type yy_current_state;
+	char *yy_cp;
     
 	yy_current_state = (yy_start);
 
 	for ( yy_cp = (yytext_ptr) + YY_MORE_ADJ; yy_cp < (yy_c_buf_p); ++yy_cp )
 		{
-		register YY_CHAR yy_c = (*yy_cp ? yy_ec[YY_SC_TO_UI(*yy_cp)] : 1);
+		YY_CHAR yy_c = (*yy_cp ? yy_ec[YY_SC_TO_UI(*yy_cp)] : 1);
 		if ( yy_accept[yy_current_state] )
 			{
 			(yy_last_accepting_state) = yy_current_state;
@@ -3412,10 +3445,10 @@ static int yy_get_next_buffer (void)
  */
     static yy_state_type yy_try_NUL_trans  (yy_state_type yy_current_state )
 {
-	register int yy_is_jam;
-    	register char *yy_cp = (yy_c_buf_p);
+	int yy_is_jam;
+    	char *yy_cp = (yy_c_buf_p);
 
-	register YY_CHAR yy_c = 1;
+	YY_CHAR yy_c = 1;
 	if ( yy_accept[yy_current_state] )
 		{
 		(yy_last_accepting_state) = yy_current_state;
@@ -3430,8 +3463,12 @@ static int yy_get_next_buffer (void)
 	yy_current_state = yy_nxt[yy_base[yy_current_state] + (unsigned int) yy_c];
 	yy_is_jam = (yy_current_state == 1288);
 
-	return yy_is_jam ? 0 : yy_current_state;
+		return yy_is_jam ? 0 : yy_current_state;
 }
+
+#ifndef YY_NO_UNPUT
+
+#endif
 
 #ifndef YY_NO_INPUT
 #ifdef __cplusplus
@@ -3457,7 +3494,7 @@ static int yy_get_next_buffer (void)
 
 		else
 			{ /* need more input */
-			int offset = (yy_c_buf_p) - (yytext_ptr);
+			yy_size_t offset = (yy_c_buf_p) - (yytext_ptr);
 			++(yy_c_buf_p);
 
 			switch ( yy_get_next_buffer(  ) )
@@ -3587,7 +3624,7 @@ static void ptx__load_buffer_state  (void)
 	if ( ! b )
 		YY_FATAL_ERROR( "out of dynamic memory in ptx__create_buffer()" );
 
-	b->yy_buf_size = size;
+	b->yy_buf_size = (yy_size_t)size;
 
 	/* yy_ch_buf has to be 2 characters longer than the size given because
 	 * we need to put in 2 end-of-buffer characters.
@@ -3622,10 +3659,6 @@ static void ptx__load_buffer_state  (void)
 	ptx_free((void *) b  );
 }
 
-#ifndef __cplusplus
-extern int isatty (int );
-#endif /* __cplusplus */
-    
 /* Initializes or reinitializes a buffer.
  * This function is sometimes called more than once on the same buffer,
  * such as during a ptx_restart() or at EOF.
@@ -3738,7 +3771,7 @@ void ptx_pop_buffer_state (void)
  */
 static void ptx_ensure_buffer_stack (void)
 {
-	int num_to_alloc;
+	yy_size_t num_to_alloc;
     
 	if (!(yy_buffer_stack)) {
 
@@ -3746,7 +3779,7 @@ static void ptx_ensure_buffer_stack (void)
 		 * scanner will even need a stack. We use 2 instead of 1 to avoid an
 		 * immediate realloc on the next call.
          */
-		num_to_alloc = 1;
+		num_to_alloc = 1; /* After all that talk, this was set to 1 anyways... */
 		(yy_buffer_stack) = (struct yy_buffer_state**)ptx_alloc
 								(num_to_alloc * sizeof(struct yy_buffer_state*)
 								);
@@ -3763,7 +3796,7 @@ static void ptx_ensure_buffer_stack (void)
 	if ((yy_buffer_stack_top) >= ((yy_buffer_stack_max)) - 1){
 
 		/* Increase the buffer to prepare for a possible push. */
-		int grow_size = 8 /* arbitrary grow size */;
+		yy_size_t grow_size = 8 /* arbitrary grow size */;
 
 		num_to_alloc = (yy_buffer_stack_max) + grow_size;
 		(yy_buffer_stack) = (struct yy_buffer_state**)ptx_realloc
@@ -3830,17 +3863,17 @@ YY_BUFFER_STATE ptx__scan_string (yyconst char * yystr )
 
 /** Setup the input buffer state to scan the given bytes. The next call to ptx_lex() will
  * scan from a @e copy of @a bytes.
- * @param bytes the byte buffer to scan
- * @param len the number of bytes in the buffer pointed to by @a bytes.
+ * @param yybytes the byte buffer to scan
+ * @param _yybytes_len the number of bytes in the buffer pointed to by @a bytes.
  * 
  * @return the newly allocated buffer state object.
  */
-YY_BUFFER_STATE ptx__scan_bytes  (yyconst char * yybytes, int  _yybytes_len )
+YY_BUFFER_STATE ptx__scan_bytes  (yyconst char * yybytes, yy_size_t  _yybytes_len )
 {
 	YY_BUFFER_STATE b;
 	char *buf;
 	yy_size_t n;
-	int i;
+	yy_size_t i;
     
 	/* Get memory for full buffer, including space for trailing EOB's. */
 	n = _yybytes_len + 2;
@@ -3871,7 +3904,7 @@ YY_BUFFER_STATE ptx__scan_bytes  (yyconst char * yybytes, int  _yybytes_len )
 
 static void yy_fatal_error (yyconst char* msg )
 {
-    	(void) fprintf( stderr, "%s\n", msg );
+			(void) fprintf( stderr, "%s\n", msg );
 	exit( YY_EXIT_FAILURE );
 }
 
@@ -3922,7 +3955,7 @@ FILE *ptx_get_out  (void)
 /** Get the length of the current token.
  * 
  */
-int ptx_get_leng  (void)
+yy_size_t ptx_get_leng  (void)
 {
         return ptx_leng;
 }
@@ -3937,29 +3970,29 @@ char *ptx_get_text  (void)
 }
 
 /** Set the current line number.
- * @param line_number
+ * @param _line_number line number
  * 
  */
-void ptx_set_lineno (int  line_number )
+void ptx_set_lineno (int  _line_number )
 {
     
-    ptx_lineno = line_number;
+    ptx_lineno = _line_number;
 }
 
 /** Set the input stream. This does not discard the current
  * input buffer.
- * @param in_str A readable stream.
+ * @param _in_str A readable stream.
  * 
  * @see ptx__switch_to_buffer
  */
-void ptx_set_in (FILE *  in_str )
+void ptx_set_in (FILE *  _in_str )
 {
-        ptx_in = in_str ;
+        ptx_in = _in_str ;
 }
 
-void ptx_set_out (FILE *  out_str )
+void ptx_set_out (FILE *  _out_str )
 {
-        ptx_out = out_str ;
+        ptx_out = _out_str ;
 }
 
 int ptx_get_debug  (void)
@@ -3967,9 +4000,9 @@ int ptx_get_debug  (void)
         return ptx__flex_debug;
 }
 
-void ptx_set_debug (int  bdebug )
+void ptx_set_debug (int  _bdebug )
 {
-        ptx__flex_debug = bdebug ;
+        ptx__flex_debug = _bdebug ;
 }
 
 static int yy_init_globals (void)
@@ -4032,7 +4065,8 @@ int ptx_lex_destroy  (void)
 #ifndef yytext_ptr
 static void yy_flex_strncpy (char* s1, yyconst char * s2, int n )
 {
-	register int i;
+		
+	int i;
 	for ( i = 0; i < n; ++i )
 		s1[i] = s2[i];
 }
@@ -4041,7 +4075,7 @@ static void yy_flex_strncpy (char* s1, yyconst char * s2, int n )
 #ifdef YY_NEED_STRLEN
 static int yy_flex_strlen (yyconst char * s )
 {
-	register int n;
+	int n;
 	for ( n = 0; s[n]; ++n )
 		;
 
@@ -4051,11 +4085,12 @@ static int yy_flex_strlen (yyconst char * s )
 
 void *ptx_alloc (yy_size_t  size )
 {
-	return (void *) malloc( size );
+			return (void *) malloc( size );
 }
 
 void *ptx_realloc  (void * ptr, yy_size_t  size )
 {
+		
 	/* The cast to (char *) in the following accommodates both
 	 * implementations that use char* generic pointers, and those
 	 * that use void* generic pointers.  It works with the latter
@@ -4068,7 +4103,7 @@ void *ptx_realloc  (void * ptr, yy_size_t  size )
 
 void ptx_free (void * ptr )
 {
-	free( (char *) ptr );	/* see ptx_realloc() for (char *) cast */
+			free( (char *) ptr );	/* see ptx_realloc() for (char *) cast */
 }
 
 #define YYTABLES_NAME "yytables"

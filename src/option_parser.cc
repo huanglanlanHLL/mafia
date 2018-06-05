@@ -86,6 +86,10 @@ public:
 
    virtual bool fromString(const string str)
    {
+	   if(str==""){
+		   m_variable=0;
+		   return true;
+	   }
       stringstream ss(str);
       ss.exceptions(stringstream::failbit | stringstream::badbit);
       ss << setbase(10);

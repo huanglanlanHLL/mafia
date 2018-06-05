@@ -24,7 +24,9 @@
 // CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
+#include<iostream>
+using std::cout;
+using std::endl;
 #include "gpu-cache.h"
 #include "stat-tool.h"
 #include <assert.h>
@@ -148,15 +150,20 @@ enum cache_request_status tag_array::probe( new_addr_type addr, unsigned &idx , 
     }
     //printf("the cache _part is %d\n",m_config.cache_part==true?1:0);
     if (m_config.cache_part) {
+		
         unsigned threshold;
+		
 		if(gpu_mode3 ==0)//not 3 apps
 			threshold = gpu_sms_app1;
 		else
 			threshold= gpu_sms/gpu_groups;
+	
 		//unsigned threshold = gpu_sms/gpu_groups;
 	   //unsigned threshold = gpu_sms_app1; // TUBA - core partitioning
         if (core_id_l2 != -1)
         {
+            //cout<<"sjq"<<" inter part"<<endl;
+            //cout<<"sjq "<<"threshold= "<<endl;
             //rewrite by sjq:
             if(gpu_mode3==1){
                 if(core_id_l2<threshold){
@@ -179,8 +186,14 @@ enum cache_request_status tag_array::probe( new_addr_type addr, unsigned &idx , 
                     way_end=m_config.m_assoc;
                 }
             }else abort();
+            //cout<<"sjq the assoc= "<<m_config.m_assoc<<endl;
+            //cout<<"sjq the way_start= "<<way_start<<endl;
+            //cout<<"sjq the way_end= "<<way_end<<endl;
+
         }
+        
     }
+	
 
     if ((m_config.cache_part) && (way_start == way_end)) {
         idx = invalid_line; // only when complete bypassing of one stream
