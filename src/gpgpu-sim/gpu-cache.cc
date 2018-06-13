@@ -30,7 +30,7 @@ using std::endl;
 #include "gpu-cache.h"
 #include "stat-tool.h"
 #include <assert.h>
-
+#include <vector>
 #define MAX_DEFAULT_CACHE_SIZE_MULTIBLIER 4
 // used to allocate memory that is large enough to adapt the changes in cache size across kernels
 
@@ -58,6 +58,7 @@ const char * cache_request_status_str(enum cache_request_status status)
 void l2_cache_config::init(linear_to_raw_address_translation *address_mapping){
 	cache_config::init(m_config_string,FuncCachePreferNone);
 	m_address_mapping = address_mapping;
+    m_partition_config.init(this->m_assoc,this->m_nset);
 }
 
 unsigned l2_cache_config::set_index(new_addr_type addr) const{
@@ -88,6 +89,7 @@ tag_array::tag_array( cache_config &config,
 void tag_array::update_cache_parameters(cache_config &config)
 {
 	m_config=config;
+
 }
 
 tag_array::tag_array( cache_config &config,
@@ -123,6 +125,8 @@ void tag_array::init( int core_id, int type_id )
 
 enum cache_request_status tag_array::probe( new_addr_type addr, unsigned &idx , unsigned core_id_l2) const {
     //assert( m_config.m_write_policy == READ_ONLY );
+
+
     unsigned set_index = m_config.set_index(addr);
     new_addr_type tag = m_config.tag(addr);
 
@@ -150,7 +154,7 @@ enum cache_request_status tag_array::probe( new_addr_type addr, unsigned &idx , 
     }
     //printf("the cache _part is %d\n",m_config.cache_part==true?1:0);
     if (m_config.cache_part) {
-		
+		partition_unit* part=this->m_config.p_part_unit;
         unsigned threshold;
 		
 		if(gpu_mode3 ==0)//not 3 apps
@@ -162,30 +166,43 @@ enum cache_request_status tag_array::probe( new_addr_type addr, unsigned &idx , 
 	   //unsigned threshold = gpu_sms_app1; // TUBA - core partitioning
         if (core_id_l2 != -1)
         {
+            //std::vector<int> part=m_config.m_partition_config.m_partiton_unit.getBestPartition();
+            
             //cout<<"sjq"<<" inter part"<<endl;
             //cout<<"sjq "<<"threshold= "<<endl;
             //rewrite by sjq:
-            if(gpu_mode3==1){
+            assert(part!=NULL);
+            if(m_config.m_partition_config.enable_partition_unit==false){
+                if(gpu_mode3==1){
+                    if(core_id_l2<threshold){
+                        way_start=0;
+                        way_end=m_config.m_assoc/3;
+                    }else if(core_id_l2<2*threshold){
+                        way_start=m_config.m_assoc/3;
+                        way_end=2*m_config.m_assoc/3;
+                    }else{
+                        way_start=2*m_config.m_assoc/3;
+                        way_end=m_config.m_assoc;
+                   }
+                }
+            else if(gpu_mode3==0){
+                    if(core_id_l2<threshold){
+                        way_start=0;
+                        way_end=m_config.m_assoc/gpu_groups;
+                    }else{
+                        way_start=m_config.m_assoc/gpu_groups;
+                        way_end=m_config.m_assoc;
+                    }
+                }else abort();
+            }else{
                 if(core_id_l2<threshold){
                     way_start=0;
-                    way_end=m_config.m_assoc/3;
-                }else if(core_id_l2<2*threshold){
-                    way_start=m_config.m_assoc/3;
-                    way_end=2*m_config.m_assoc/3;
+                    way_end=(*part).getBestPartition()[0];
                 }else{
-                    way_start=2*m_config.m_assoc/3;
-                    way_end=m_config.m_assoc;
+                    way_start=(*part).getBestPartition()[0];
+                    way_end=(*part).getBestPartition()[0]+(*part).getBestPartition()[1];
                 }
             }
-            else if(gpu_mode3==0){
-                if(core_id_l2<threshold){
-                    way_start=0;
-                    way_end=m_config.m_assoc/gpu_groups;
-                }else{
-                    way_start=m_config.m_assoc/gpu_groups;
-                    way_end=m_config.m_assoc;
-                }
-            }else abort();
             //cout<<"sjq the assoc= "<<m_config.m_assoc<<endl;
             //cout<<"sjq the way_start= "<<way_start<<endl;
             //cout<<"sjq the way_end= "<<way_end<<endl;
@@ -351,7 +368,7 @@ enum cache_request_status tag_array::access( new_addr_type addr, unsigned time, 
     return status;
 }
 
-void tag_array::fill( new_addr_type addr, unsigned time )
+void tag_array::fill( new_addr_type addr, unsigned time)
 {
     assert( m_config.m_alloc_policy == ON_FILL );
     unsigned idx;
@@ -1050,7 +1067,9 @@ void data_cache::send_write_request(mem_fetch *mf, cache_event request, unsigned
 /****** Write-hit functions (Set by config file) ******/
 
 /// Write-back hit: Mark block as modified
-cache_request_status data_cache::wr_hit_wb(new_addr_type addr, unsigned cache_index, mem_fetch *mf, unsigned time, std::list<cache_event> &events, enum cache_request_status status ){
+cache_request_status data_cache::wr_hit_wb(new_addr_type addr, unsigned cache_index, mem_fetch *mf, 
+                                        unsigned time, std::list<cache_event> &events, 
+                                        enum cache_request_status status ){
 	new_addr_type block_addr = m_config.block_addr(addr);
 	m_tag_array->access(block_addr,time,cache_index,mf); // update LRU state
 	cache_block_t &block = m_tag_array->get_block(cache_index);
@@ -1060,7 +1079,12 @@ cache_request_status data_cache::wr_hit_wb(new_addr_type addr, unsigned cache_in
 }
 
 /// Write-through hit: Directly send request to lower level memory
-cache_request_status data_cache::wr_hit_wt(new_addr_type addr, unsigned cache_index, mem_fetch *mf, unsigned time, std::list<cache_event> &events, enum cache_request_status status ){
+cache_request_status data_cache::wr_hit_wt(new_addr_type addr, 
+                                            unsigned cache_index, 
+                                            mem_fetch *mf, 
+                                            unsigned time, 
+                                            std::list<cache_event> &events, 
+                                            enum cache_request_status status ){
 	if(miss_queue_full(0))
 		return RESERVATION_FAIL; // cannot handle request this cycle
 
@@ -1334,14 +1358,13 @@ data_cache::access( new_addr_type addr,
                     unsigned time,
                     std::list<cache_event> &events )
 {
-
     assert( mf->get_data_size() <= m_config.get_line_sz());
     bool wr = mf->get_is_write();
     new_addr_type block_addr = m_config.block_addr(addr);
     unsigned cache_index = (unsigned)-1;
     //printf("this probe name =%s \n",this->m_name.c_str());
     enum cache_request_status probe_status
-        = m_tag_array->probe( block_addr, cache_index, mf->get_sid() );
+        = m_tag_array->probe( block_addr, cache_index, mf->get_sid());
     enum cache_request_status access_status
         = process_tag_probe( wr, probe_status, addr, cache_index, mf, time, events );
     m_stats.inc_stats(mf->get_access_type(),
@@ -1369,8 +1392,9 @@ enum cache_request_status
 l2_cache::access( new_addr_type addr,
                   mem_fetch *mf,
                   unsigned time,
-                  std::list<cache_event> &events )
+                  std::list<cache_event> &events)
 {
+    
     return data_cache::access( addr, mf, time, events );
 }
 

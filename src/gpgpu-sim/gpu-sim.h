@@ -33,14 +33,16 @@
 #include "../trace.h"
 #include "addrdec.h"
 #include "shader.h"
+#include "partition.hpp"
 #include <math.h>
 #include <iostream>
 #include <fstream>
 #include <list>
 #include <stdio.h>
 
-
-
+class simt_core_cluster;
+class l2_cache_config;
+struct shader_core_config;
 // constants for statistics printouts
 #define GPU_RSTAT_SHD_INFO 0x1
 #define GPU_RSTAT_BW_STAT  0x2
@@ -156,70 +158,8 @@ struct memory_config {
        gpgpu_dram_timing_opt=NULL;
        gpgpu_L2_queue_config=NULL;
    }
-   void init()
-   {
-      assert(gpgpu_dram_timing_opt);
-      if (strchr(gpgpu_dram_timing_opt, '=') == NULL) {
-         // dram timing option in ordered variables (legacy)
-         // Disabling bank groups if their values are not specified
-         nbkgrp = 1;
-         tCCDL = 0;
-         tRTPL = 0;
-         sscanf(gpgpu_dram_timing_opt,"%d:%d:%d:%d:%d:%d:%d:%d:%d:%d:%d:%d:%d:%d",
-                &nbk,&tCCD,&tRRD,&tRCD,&tRAS,&tRP,&tRC,&CL,&WL,&tCDLR,&tWR,&nbkgrp,&tCCDL,&tRTPL);
-      } else {
-         // named dram timing options (unordered)
-         option_parser_t dram_opp = option_parser_create(); 
-
-         option_parser_register(dram_opp, "nbk",  OPT_UINT32, &nbk,   "number of banks", ""); 
-         option_parser_register(dram_opp, "CCD",  OPT_UINT32, &tCCD,  "column to column delay", ""); 
-         option_parser_register(dram_opp, "RRD",  OPT_UINT32, &tRRD,  "minimal delay between activation of rows in different banks", ""); 
-         option_parser_register(dram_opp, "RCD",  OPT_UINT32, &tRCD,  "row to column delay", ""); 
-         option_parser_register(dram_opp, "RAS",  OPT_UINT32, &tRAS,  "time needed to activate row", ""); 
-         option_parser_register(dram_opp, "RP",   OPT_UINT32, &tRP,   "time needed to precharge (deactivate) row", ""); 
-         option_parser_register(dram_opp, "RC",   OPT_UINT32, &tRC,   "row cycle time", ""); 
-         option_parser_register(dram_opp, "CDLR", OPT_UINT32, &tCDLR, "switching from write to read (changes tWTR)", ""); 
-         option_parser_register(dram_opp, "WR",   OPT_UINT32, &tWR,   "last data-in to row precharge", ""); 
-
-         option_parser_register(dram_opp, "CL", OPT_UINT32, &CL, "CAS latency", ""); 
-         option_parser_register(dram_opp, "WL", OPT_UINT32, &WL, "Write latency", ""); 
-
-         //Disabling bank groups if their values are not specified
-         option_parser_register(dram_opp, "nbkgrp", OPT_UINT32, &nbkgrp, "number of bank groups", "1"); 
-         option_parser_register(dram_opp, "CCDL",   OPT_UINT32, &tCCDL,  "column to column delay between accesses to different bank groups", "0"); 
-         option_parser_register(dram_opp, "RTPL",   OPT_UINT32, &tRTPL,  "read to precharge delay between accesses to different bank groups", "0"); 
-
-         option_parser_delimited_string(dram_opp, gpgpu_dram_timing_opt, "=:;"); 
-         fprintf(stdout, "DRAM Timing Options:\n"); 
-         option_parser_print(dram_opp, stdout); 
-         option_parser_destroy(dram_opp); 
-      }
-
-      int nbkt = nbk/nbkgrp;
-      unsigned i;
-      for (i=0; nbkt>0; i++) {
-          nbkt = nbkt>>1;
-      }
-      bk_tag_length = i;
-      assert(nbkgrp>0 && "Number of bank groups cannot be zero");
-      tRCDWR = tRCD-(WL+1);
-      tRTW = (CL+(BL/data_command_freq_ratio)+2-WL);
-      tWTR = (WL+(BL/data_command_freq_ratio)+tCDLR); 
-      tWTP = (WL+(BL/data_command_freq_ratio)+tWR);
-      dram_atom_size = BL * busW * gpu_n_mem_per_ctrlr; // burst length x bus width x # chips per partition 
-
-      assert( m_n_sub_partition_per_memory_channel > 0 ); 
-      assert( (nbk % m_n_sub_partition_per_memory_channel == 0) 
-              && "Number of DRAM banks must be a perfect multiple of memory sub partition"); 
-      m_n_mem_sub_partition = m_n_mem * m_n_sub_partition_per_memory_channel; 
-      fprintf(stdout, "Total number of memory sub partition = %u\n", m_n_mem_sub_partition); 
-
-      m_address_mapping.init(m_n_mem, m_n_sub_partition_per_memory_channel);
-      m_L2_config.init(&m_address_mapping);
-
-      m_valid = true;
-      icnt_flit_size = 32; // Default 32
-   }
+   void init();
+   
    void reg_options(class OptionParser * opp);
 
    bool m_valid;
@@ -296,38 +236,11 @@ class gpgpu_sim_config : public power_config, public gpgpu_functional_sim_config
 public:
     gpgpu_sim_config() { m_valid = false; }
     void reg_options(class OptionParser * opp);
-    void init() 
-    {
-        gpu_stat_sample_freq = 10000;
-        gpu_runtime_stat_flag = 0;
-        sscanf(gpgpu_runtime_stat, "%d:%x", &gpu_stat_sample_freq, &gpu_runtime_stat_flag);
-        m_shader_config.init();
-        ptx_set_tex_cache_linesize(m_shader_config.m_L1T_config.get_line_sz());
-        m_memory_config.init();
-        init_clock_domains(); 
-        power_config::init();
-        Trace::init();
+    void init() ;
+    
 
-
-        // initialize file name if it is not set 
-        time_t curr_time;
-        time(&curr_time);
-        char *date = ctime(&curr_time);
-        char *s = date;
-        while (*s) {
-            if (*s == ' ' || *s == '\t' || *s == ':') *s = '-';
-            if (*s == '\n' || *s == '\r' ) *s = 0;
-            s++;
-        }
-        char buf[1024];
-        snprintf(buf,1024,"gpgpusim_visualizer__%s.log.gz",date);
-        g_visualizer_filename = strdup(buf);
-
-        m_valid=true;
-    }
-
-    unsigned num_shader() const { return m_shader_config.num_shader(); }
-    unsigned num_cluster() const { return m_shader_config.n_simt_clusters; }
+    unsigned num_shader() const ;
+    unsigned num_cluster() const;
     unsigned get_max_concurrent_kernel() const { return max_concurrent_kernel; }
 
 private:
@@ -380,7 +293,7 @@ private:
 class gpgpu_sim : public gpgpu_t {
 public:
    gpgpu_sim( const gpgpu_sim_config &config );
-
+    partition_unit *p_m_partition_unit;
    void set_prop( struct cudaDeviceProp *prop );
 
    void launch( kernel_info_t *kinfo );

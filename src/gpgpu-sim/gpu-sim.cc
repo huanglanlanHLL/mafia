@@ -231,13 +231,30 @@ void memory_config::reg_options(class OptionParser * opp)
     option_parser_register(opp, "-dram_latency", OPT_UINT32, &dram_latency,
                      "DRAM latency (default 30)",
                      "30");
-				     option_parser_register(opp, "-gpu_char", OPT_INT32, &gpu_char,  //new
+	option_parser_register(opp, "-gpu_char", OPT_INT32, &gpu_char,  //new
 				                 "gpu char activated", 
 				                 "0");
-							     option_parser_register(opp, "-gpu_app", OPT_INT32, &gpu_app,  //new
+	option_parser_register(opp, "-gpu_app", OPT_INT32, &gpu_app,  //new
 							                 "gpu mul app code activated", 
 							                 "0");
+//sjq start                            
+    option_parser_register(opp,"-partition_active_cycle",
+                                OPT_INT64,&m_L2_config.m_partition_config.activeCycles,
+                                "the l2 cycles that partition unit to refresh the partition information","5000000");
 
+    option_parser_register(opp,"-partition_samplingwidth",
+                                OPT_INT32,&m_L2_config.m_partition_config.samplingWidth,
+                                "the sampling","8");
+    option_parser_register(opp,"-partition_app_num",
+                                OPT_INT32,&m_L2_config.m_partition_config.app_num,
+                                "the appnum","2"); 
+    option_parser_register(opp,"-partition_enable",
+                                OPT_BOOL,&m_L2_config.m_partition_config.enable_partition_unit,
+                                "enable l2 partition with partition unit?","1");                   
+     option_parser_register(opp,"-partition_enable",
+                                OPT_INT32,&m_L2_config.m_partition_config.reSetPolicy,
+                                "reset polocy:0: devide by2 1:set zero","0");    
+//sjq end
     m_address_mapping.addrdec_setoption(opp);
 }
 
@@ -599,8 +616,9 @@ void gpgpu_sim::set_kernel_done( kernel_info_t *kernel )
 void set_ptx_warp_size(const struct core_config * warp_size);
 
 gpgpu_sim::gpgpu_sim( const gpgpu_sim_config &config ) 
-    : gpgpu_t(config), m_config(config)
+    : gpgpu_t(config), m_config(config),p_m_partition_unit(new partition_unit(config.m_memory_config.m_L2_config.m_partition_config))
 { 
+    m_config.m_memory_config.m_L2_config.p_part_unit=p_m_partition_unit;
     m_shader_config = &m_config.m_shader_config;
     m_memory_config = &m_config.m_memory_config;
     set_ptx_warp_size(m_shader_config);
@@ -641,6 +659,7 @@ gpgpu_sim::gpgpu_sim( const gpgpu_sim_config &config )
         for (unsigned p = 0; p < m_memory_config->m_n_sub_partition_per_memory_channel; p++) {
             unsigned submpid = i * m_memory_config->m_n_sub_partition_per_memory_channel + p; 
             m_memory_sub_partition[submpid] = m_memory_partition_unit[i]->get_sub_partition(p); 
+            
         }
     }
 
@@ -743,12 +762,13 @@ bool gpgpu_sim::active()
 
 void gpgpu_sim::init()
 {
+    
     // run a CUDA grid on the GPU microarchitecture simulator
     gpu_sim_cycle = 0;
     gpu_sim_insn = 0;
     last_gpu_sim_insn = 0;
     m_total_cta_launched=0;
-count_tlp =0;	
+    count_tlp =0;	
     gpu_sms = m_config.num_shader(); // new
     gpu_groups = m_memory_config->gpgpu_num_groups;
 	gpu_mode3 = m_memory_config-> gpgpu_mode3;
@@ -1497,6 +1517,13 @@ void gpgpu_sim::cycle()
 
    // L2 operations follow L2 clock domain
    if (clock_mask & L2) {
+       static unsigned long long part_cycle=0;
+       if(part_cycle%m_config.m_memory_config.m_L2_config.m_partition_config.activeCycles==0){
+           p_m_partition_unit->setBestPartition();
+           p_m_partition_unit->reSet();
+           p_m_partition_unit->printStat();
+       }
+       part_cycle++;
        m_power_stats->pwr_mem_stat->l2_cache_stats[CURRENT_STAT_IDX].clear();
       for (unsigned i=0;i<m_memory_config->m_n_mem_sub_partition;i++) {
           //move memory request from interconnect into memory partition (if not backed up)
@@ -1898,4 +1925,101 @@ simt_core_cluster * gpgpu_sim::getSIMTCluster()
 {
    return *m_cluster;
 }
+void memory_config::init()
+   {
+      assert(gpgpu_dram_timing_opt);
+      if (strchr(gpgpu_dram_timing_opt, '=') == NULL) {
+         // dram timing option in ordered variables (legacy)
+         // Disabling bank groups if their values are not specified
+         nbkgrp = 1;
+         tCCDL = 0;
+         tRTPL = 0;
+         sscanf(gpgpu_dram_timing_opt,"%d:%d:%d:%d:%d:%d:%d:%d:%d:%d:%d:%d:%d:%d",
+                &nbk,&tCCD,&tRRD,&tRCD,&tRAS,&tRP,&tRC,&CL,&WL,&tCDLR,&tWR,&nbkgrp,&tCCDL,&tRTPL);
+      } else {
+         // named dram timing options (unordered)
+         option_parser_t dram_opp = option_parser_create(); 
+
+         option_parser_register(dram_opp, "nbk",  OPT_UINT32, &nbk,   "number of banks", ""); 
+         option_parser_register(dram_opp, "CCD",  OPT_UINT32, &tCCD,  "column to column delay", ""); 
+         option_parser_register(dram_opp, "RRD",  OPT_UINT32, &tRRD,  "minimal delay between activation of rows in different banks", ""); 
+         option_parser_register(dram_opp, "RCD",  OPT_UINT32, &tRCD,  "row to column delay", ""); 
+         option_parser_register(dram_opp, "RAS",  OPT_UINT32, &tRAS,  "time needed to activate row", ""); 
+         option_parser_register(dram_opp, "RP",   OPT_UINT32, &tRP,   "time needed to precharge (deactivate) row", ""); 
+         option_parser_register(dram_opp, "RC",   OPT_UINT32, &tRC,   "row cycle time", ""); 
+         option_parser_register(dram_opp, "CDLR", OPT_UINT32, &tCDLR, "switching from write to read (changes tWTR)", ""); 
+         option_parser_register(dram_opp, "WR",   OPT_UINT32, &tWR,   "last data-in to row precharge", ""); 
+
+         option_parser_register(dram_opp, "CL", OPT_UINT32, &CL, "CAS latency", ""); 
+         option_parser_register(dram_opp, "WL", OPT_UINT32, &WL, "Write latency", ""); 
+
+         //Disabling bank groups if their values are not specified
+         option_parser_register(dram_opp, "nbkgrp", OPT_UINT32, &nbkgrp, "number of bank groups", "1"); 
+         option_parser_register(dram_opp, "CCDL",   OPT_UINT32, &tCCDL,  "column to column delay between accesses to different bank groups", "0"); 
+         option_parser_register(dram_opp, "RTPL",   OPT_UINT32, &tRTPL,  "read to precharge delay between accesses to different bank groups", "0"); 
+
+         option_parser_delimited_string(dram_opp, gpgpu_dram_timing_opt, "=:;"); 
+         fprintf(stdout, "DRAM Timing Options:\n"); 
+         option_parser_print(dram_opp, stdout); 
+         option_parser_destroy(dram_opp); 
+      }
+
+      int nbkt = nbk/nbkgrp;
+      unsigned i;
+      for (i=0; nbkt>0; i++) {
+          nbkt = nbkt>>1;
+      }
+      bk_tag_length = i;
+      assert(nbkgrp>0 && "Number of bank groups cannot be zero");
+      tRCDWR = tRCD-(WL+1);
+      tRTW = (CL+(BL/data_command_freq_ratio)+2-WL);
+      tWTR = (WL+(BL/data_command_freq_ratio)+tCDLR); 
+      tWTP = (WL+(BL/data_command_freq_ratio)+tWR);
+      dram_atom_size = BL * busW * gpu_n_mem_per_ctrlr; // burst length x bus width x # chips per partition 
+
+      assert( m_n_sub_partition_per_memory_channel > 0 ); 
+      assert( (nbk % m_n_sub_partition_per_memory_channel == 0) 
+              && "Number of DRAM banks must be a perfect multiple of memory sub partition"); 
+      m_n_mem_sub_partition = m_n_mem * m_n_sub_partition_per_memory_channel; 
+      fprintf(stdout, "Total number of memory sub partition = %u\n", m_n_mem_sub_partition); 
+
+      m_address_mapping.init(m_n_mem, m_n_sub_partition_per_memory_channel);
+      m_L2_config.init(&m_address_mapping);
+
+      m_valid = true;
+      icnt_flit_size = 32; // Default 32
+   }
+void gpgpu_sim_config::init(){
+        gpu_stat_sample_freq = 10000;
+        gpu_runtime_stat_flag = 0;
+        sscanf(gpgpu_runtime_stat, "%d:%x", &gpu_stat_sample_freq, &gpu_runtime_stat_flag);
+        m_shader_config.init();
+        ptx_set_tex_cache_linesize(m_shader_config.m_L1T_config.get_line_sz());
+        m_memory_config.init();
+        init_clock_domains(); 
+        power_config::init();
+        Trace::init();
+
+
+        // initialize file name if it is not set 
+        time_t curr_time;
+        time(&curr_time);
+        char *date = ctime(&curr_time);
+        char *s = date;
+        while (*s) {
+            if (*s == ' ' || *s == '\t' || *s == ':') *s = '-';
+            if (*s == '\n' || *s == '\r' ) *s = 0;
+            s++;
+        }
+        char buf[1024];
+        snprintf(buf,1024,"gpgpusim_visualizer__%s.log.gz",date);
+        g_visualizer_filename = strdup(buf);
+
+        m_valid=true;
+    }
+unsigned gpgpu_sim_config::num_shader() const 
+    { return m_shader_config.num_shader(); }
+
+unsigned gpgpu_sim_config::num_cluster() const
+ { return m_shader_config.n_simt_clusters; }
 

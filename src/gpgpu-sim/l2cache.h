@@ -164,7 +164,7 @@ public:
    bool busy() const;
 
    void cache_cycle( unsigned cycle );
-
+    
    bool full() const;
    void push( class mem_fetch* mf, unsigned long long clock_cycle );
    class mem_fetch* pop(); 

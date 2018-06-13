@@ -27,14 +27,15 @@
 
 #ifndef GPU_CACHE_H
 #define GPU_CACHE_H
-
+//#include "partition.hpp"
 #include <stdio.h>
 #include <stdlib.h>
 #include "gpu-misc.h"
 #include "mem_fetch.h"
+#include "partition.hpp"
 #include "../abstract_hardware_model.h"
 #include "../tr1_hash_map.h"
-
+#include <iostream>
 #include "addrdec.h"
 
 enum cache_block_state {
@@ -126,7 +127,9 @@ enum mshr_config_t {
 
 class cache_config {
 public:
-    cache_config() 
+    partition_unit* p_part_unit;
+    partition_config m_partition_config;
+    cache_config():m_partition_config() 
     { 
         m_valid = false; 
         m_disabled = false;
@@ -135,6 +138,8 @@ public:
         m_config_stringPrefShared = NULL;
         m_data_port_width = 0; 
     }
+    
+
     void init(char * config, FuncCache status)
     {
     	cache_status= status;
@@ -254,7 +259,12 @@ public:
     bool cache_part;
     bool cache_bypass_l2;
     bool perfect_L1Cache;
-
+    unsigned get_nset() const{
+        return m_nset;
+    }
+    unsigned get_nassoc() const{
+        return m_assoc;
+    }
 protected:
     void exit_parse_error()
     {
@@ -305,12 +315,13 @@ protected:
 
 class l2_cache_config : public cache_config {
 public:
-	l2_cache_config() : cache_config(){}
+	l2_cache_config() :cache_config(){}
 	void init(linear_to_raw_address_translation *address_mapping);
 	virtual unsigned set_index(new_addr_type addr) const;
-
+    
 private:
 	linear_to_raw_address_translation *m_address_mapping;
+    
 };
 
 class tag_array {
@@ -571,6 +582,8 @@ bool was_read_sent( const std::list<cache_event> &events );
 /// Each subclass implements its own 'access' function
 class baseline_cache : public cache_t {
 public:
+    //sjq
+    
     baseline_cache( const char *name, cache_config &config, int core_id, int type_id, mem_fetch_interface *memport,
                      enum mem_fetch_status status )
     : m_config(config), m_tag_array(new tag_array(config,core_id,type_id)), 
@@ -738,7 +751,7 @@ public:
     : baseline_cache(name,config,core_id,type_id,memport,status){}
 
     /// Access cache for read_only_cache: returns RESERVATION_FAIL if request could not be accepted (for any reason)
-    virtual enum cache_request_status access( new_addr_type addr, mem_fetch *mf, unsigned time, std::list<cache_event> &events );
+    virtual enum cache_request_status access( new_addr_type addr, mem_fetch *mf, unsigned time, std::list<cache_event> &events);
 
     virtual ~read_only_cache(){}
 
@@ -760,7 +773,7 @@ public:
         m_wr_alloc_type = wr_alloc_type;
         m_wrbk_type = wrbk_type;
     }
-
+    //partition_unit m_partition_unit;
     virtual ~data_cache() {}
 
     virtual void init( mem_fetch_allocator *mfcreator )
@@ -989,10 +1002,16 @@ protected:
 /// and write-allocate policies
 class l2_cache : public data_cache {
 public:
-    l2_cache(const char *name,  cache_config &config,
+    /////virtual partition_unit* get_partition_unit(){
+    //    return &m_partition_unit;
+    //}
+    l2_cache(const char *name,  l2_cache_config &config,
             int core_id, int type_id, mem_fetch_interface *memport,
             mem_fetch_allocator *mfcreator, enum mem_fetch_status status )
-            : data_cache(name,config,core_id,type_id,memport,mfcreator,status, L2_WR_ALLOC_R, L2_WRBK_ACC){}
+            : data_cache(name,config,core_id,type_id,memport,mfcreator,status, L2_WR_ALLOC_R, L2_WRBK_ACC)
+            {
+                std::cout<<"l2 constructor"<<std::endl;
+            }
 
     virtual ~l2_cache() {}
 
@@ -1000,9 +1019,12 @@ public:
         access( new_addr_type addr,
                 mem_fetch *mf,
                 unsigned time,
-                std::list<cache_event> &events );
+                std::list<cache_event> &events  );
 				
 	void fill( mem_fetch *mf, unsigned time );
+    private:
+    
+
 };
 
 /*****************************************************************************/
