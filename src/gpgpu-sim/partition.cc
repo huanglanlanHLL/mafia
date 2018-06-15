@@ -1,6 +1,21 @@
 #include"partition.hpp"
 #include<cassert>
 #include<fstream>
+
+#ifdef SJQ_DEBUG
+#include<iostream>
+template<typename T> std::ostream& operator<<(std::ostream& out,std::list<T> m_list){
+    typename std::list<T>::iterator it=m_list.begin();
+    int i=0;
+    while(it!=m_list.end()){
+        out<<"["<<i++<<"]"<<*it<<" --> ";
+        it++;
+    }
+    out<<"END"<<std::endl;
+    return out;
+}
+#endif
+
 partition_unit::partition_unit(const partition_config& config):m_config(config),best_partition(2,8){
     for(int i=0;i<m_config.app_num;i++){
         counter.push_back(std::vector<unsigned long long>());
@@ -60,11 +75,11 @@ void partition_unit::access(unsigned core_id,unsigned set_idx,new_addr_type tagI
         int numToAdd=0;
         for(int i=0;i<m_config.n_assoc;i++){
             assert(it!=l2_sim_stack_array[stackId][appId].end());
-            if(numToAdd==0&&*it==-1){
+            if(numToAdd==0&&*it==-1){//miss and have ivalid entry
                 *it=tagId;
                 break;
             }
-            if(numToAdd==0&&*it==tagId){
+            if(numToAdd==0&&*it==tagId){//hit
                 numToAdd=1;
                 l2_sim_stack_array[stackId][appId].push_front(tagId);
                 std::list<new_addr_type>::iterator newit=it--;
@@ -74,13 +89,24 @@ void partition_unit::access(unsigned core_id,unsigned set_idx,new_addr_type tagI
                 
             }
 
-            if(numToAdd==1){
+            if(numToAdd==1){//hit
                 local_counter[stackId][appId][i]++;
                 counter[appId][i]++;
             }
             it++;
 
         }
+        if(numToAdd==0&&it==l2_sim_stack_array[stackId][appId].end()){//miss and need to evict
+            l2_sim_stack_array[stackId][appId].push_front(tagId);
+            --it;
+            l2_sim_stack_array[stackId][appId].erase(it);
+            
+            
+
+        }
+        #ifdef SJQ_DEBUG
+         std::cout<<l2_sim_stack_array[stackId][appId]<<std::endl;
+        #endif
     }
 }
 
