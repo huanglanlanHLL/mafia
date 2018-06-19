@@ -171,7 +171,7 @@ void memory_config::reg_options(class OptionParser * opp)
                            "i2$:$2d:d2$:$2i",
                            "8:8:8:8");
 
-    option_parser_register(opp, "-l2_ideal", OPT_BOOL, &l2_ideal, 
+    option_parser_register(opp, "-l2_ideal", OPT_BOOL, &m_L2_config.l2_ideal, 
                            "Use a ideal L2 cache that always hit",
                            "0");
     option_parser_register(opp, "-gpgpu_cache:dl2", OPT_CSTR, &m_L2_config.m_config_string, 

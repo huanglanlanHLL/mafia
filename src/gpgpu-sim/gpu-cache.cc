@@ -150,6 +150,7 @@ enum cache_request_status tag_array::probe( new_addr_type addr, unsigned &idx , 
 
     if (m_config.l2_ideal && (core_id_l2 != -1)) {
         idx = 0;
+        std::cout<<"ideal good"<<std::endl;
         return HIT;
     }
     //printf("the cache _part is %d\n",m_config.cache_part==true?1:0);
