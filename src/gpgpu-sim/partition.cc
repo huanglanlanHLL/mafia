@@ -80,13 +80,14 @@ void partition_unit::access(unsigned core_id,unsigned set_idx,new_addr_type tagI
                 l2_sim_stack_array[stackId][appId].push_front(tagId);
                 break;
             }
-            if(numToAdd==0&&*it==tagId){//hit
+            if(numToAdd==0&&*it==tagId){//hit //fix bug 2018 06 20
                 numToAdd=1;
                 l2_sim_stack_array[stackId][appId].push_front(tagId);
-                std::list<new_addr_type>::iterator newit=it--;
-
+                it--;
+                std::list<new_addr_type>::iterator newit=it;
+                it++;
                 l2_sim_stack_array[stackId][appId].erase(it);
-                it=newit;
+                
                 
             }
 
