@@ -75,8 +75,9 @@ void partition_unit::access(unsigned core_id,unsigned set_idx,new_addr_type tagI
         int numToAdd=0;
         for(int i=0;i<m_config.n_assoc;i++){
             assert(it!=l2_sim_stack_array[stackId][appId].end());
-            if(numToAdd==0&&*it==-1){//miss and have ivalid entry
-                *it=tagId;
+            if(numToAdd==0&&*it==-1){//miss and have ivalid entry fixbug 2018.6.20 need to place the newest on at first way
+                l2_sim_stack_array[stackId][appId].erase(it);
+                l2_sim_stack_array[stackId][appId].push_front(tagId);
                 break;
             }
             if(numToAdd==0&&*it==tagId){//hit
